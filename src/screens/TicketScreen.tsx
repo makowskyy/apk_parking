@@ -44,6 +44,7 @@ type ParkingTicketScreenProps = {
   navigation?: {
     navigate?: (route: string) => void;
   };
+  initialPlates?: string[];
 };
 
 function formatPLN(v: number): string {
@@ -132,9 +133,13 @@ async function readBalance(): Promise<number> {
 
 const ParkingTicketScreen: React.FC<ParkingTicketScreenProps> = ({
   navigation,
+  initialPlates,
 }) => {
-  const [plates, setPlates] = useState<string[]>(DEFAULT_PLATES);
-  const [selectedPlate, setSelectedPlate] = useState<string>(plates[0]);
+  const initialPlatesValue = initialPlates ?? DEFAULT_PLATES;
+  const [plates, setPlates] = useState<string[]>(() => initialPlatesValue);
+  const [selectedPlate, setSelectedPlate] = useState<string>(
+    () => initialPlatesValue[0] ?? ""
+  );
   const [addingPlate, setAddingPlate] = useState<boolean>(false);
   const [newPlate, setNewPlate] = useState<string>("");
   const [plateInputKey, setPlateInputKey] = useState<number>(0);

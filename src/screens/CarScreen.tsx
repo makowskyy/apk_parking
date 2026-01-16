@@ -16,7 +16,8 @@ import * as ImagePicker from "expo-image-picker";
 import { ScreenWrapper } from "../components";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
 
-const PLATE_RECOGNIZER_API_KEY = process.env.EXPO_PUBLIC_PLATE_RECOGNIZER_API_KEY;
+const getPlateRecognizerApiKey = () =>
+  process.env.EXPO_PUBLIC_PLATE_RECOGNIZER_API_KEY;
 const SCAN_COLOR = "#a855f7";
 
 async function recognizePlate(base64Image: string, apiKey: string) {
@@ -67,6 +68,15 @@ const initialCars: Car[] = [
 type CarsScreenProps = {
   navigation: any;
 };
+
+export function removeSelectedCar(cars: Car[], selectedId: string) {
+  const selectedCar = cars.find((car) => car.id === selectedId);
+  if (!selectedCar) return null;
+
+  const updated = cars.filter((car) => car.id !== selectedCar.id);
+  const nextId = updated[0]?.id ?? "";
+  return { updated, nextId };
+}
 
 const CarsScreen: React.FC<CarsScreenProps> = () => {
   const [cars, setCars] = useState<Car[]>(initialCars);
@@ -162,14 +172,15 @@ const CarsScreen: React.FC<CarsScreenProps> = () => {
       return;
     }
 
-    if (!PLATE_RECOGNIZER_API_KEY) {
+    const apiKey = getPlateRecognizerApiKey();
+    if (!apiKey) {
       setScanMessage("Ustaw EXPO_PUBLIC_PLATE_RECOGNIZER_API_KEY w pliku .env.");
       return;
     }
 
     setIsScanning(true);
     try {
-      const plate = await recognizePlate(asset.base64, PLATE_RECOGNIZER_API_KEY);
+      const plate = await recognizePlate(asset.base64, apiKey);
       if (plate) {
         const normalizedPlate = plate.toUpperCase();
         setNewPlate(normalizedPlate);
@@ -233,14 +244,11 @@ const CarsScreen: React.FC<CarsScreenProps> = () => {
   };
 
   const handleDelete = () => {
-    if (!selectedCar) return;
+    const result = removeSelectedCar(cars, selectedId);
+    if (!result) return;
 
-    setCars((prev) => {
-      const updated = prev.filter((car) => car.id !== selectedCar.id);
-      const nextId = updated[0]?.id ?? "";
-      setSelectedId(nextId);
-      return updated;
-    });
+    setCars(result.updated);
+    setSelectedId(result.nextId);
   };
 
   return (

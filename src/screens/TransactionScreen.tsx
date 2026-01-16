@@ -95,6 +95,54 @@ function computePricePLN(
   return { billable, price: +price.toFixed(2) };
 }
 
+export async function extendTransactionTicket(
+  tickets: ParkingTicket[],
+  id: string,
+  setTickets: (value: ParkingTicket[]) => void
+): Promise<void> {
+  const EXTENSION_MINUTES = 15;
+  try {
+    const target = tickets.find((t) => t.id === id);
+    if (!target) return;
+
+    const storedBalance = await AsyncStorage.getItem(BALANCE_KEY);
+    const currentBalance = storedBalance ? parseFloat(storedBalance) : 0;
+
+    const end = new Date(target.endISO);
+    const newEnd = addMinutes(end, EXTENSION_MINUTES);
+    const newDuration = (target.durationMin || 0) + EXTENSION_MINUTES;
+    const zoneCfg = ZONES[target.zone] || { ratePerHour: 0 };
+    const { price } = computePricePLN(newDuration, zoneCfg.ratePerHour);
+    const extraCost = Math.max(0, price - target.amount);
+
+    if (extraCost > currentBalance) {
+      Alert.alert("Brak środków", "Doładuj saldo, aby przedłużyć bilet.");
+      return;
+    }
+
+    const updated = tickets.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            endISO: newEnd.toISOString(),
+            durationMin: newDuration,
+            amount: price,
+          }
+        : t
+    );
+
+    setTickets(updated);
+    await AsyncStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(updated));
+
+    if (extraCost > 0) {
+      const newBalance = +(currentBalance - extraCost).toFixed(2);
+      await AsyncStorage.setItem(BALANCE_KEY, String(newBalance));
+    }
+  } catch (e) {
+    console.warn("Nie udało się przedłużyć biletu", e);
+  }
+}
+
 function isTicketActive(ticket: ParkingTicket): boolean {
   const now = new Date();
   const start = new Date(ticket.startISO);
@@ -150,47 +198,7 @@ const ParkingTransactionsScreen: React.FC = () => {
   }
 
   async function handleExtend(id: string): Promise<void> {
-    const EXTENSION_MINUTES = 15;
-    try {
-      const target = tickets.find((t) => t.id === id);
-      if (!target) return;
-
-      const storedBalance = await AsyncStorage.getItem(BALANCE_KEY);
-      const currentBalance = storedBalance ? parseFloat(storedBalance) : 0;
-
-      const end = new Date(target.endISO);
-      const newEnd = addMinutes(end, EXTENSION_MINUTES);
-      const newDuration = (target.durationMin || 0) + EXTENSION_MINUTES;
-      const zoneCfg = ZONES[target.zone] || { ratePerHour: 0 };
-      const { price } = computePricePLN(newDuration, zoneCfg.ratePerHour);
-      const extraCost = Math.max(0, price - target.amount);
-
-      if (extraCost > currentBalance) {
-        Alert.alert("Brak środków", "Doładuj saldo, aby przedłużyć bilet.");
-        return;
-      }
-
-      const updated = tickets.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              endISO: newEnd.toISOString(),
-              durationMin: newDuration,
-              amount: price,
-            }
-          : t
-      );
-
-      setTickets(updated);
-      await AsyncStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(updated));
-
-      if (extraCost > 0) {
-        const newBalance = +(currentBalance - extraCost).toFixed(2);
-        await AsyncStorage.setItem(BALANCE_KEY, String(newBalance));
-      }
-    } catch (e) {
-      console.warn("Nie udało się przedłużyć biletu", e);
-    }
+    await extendTransactionTicket(tickets, id, setTickets);
   }
 
   const renderItem: ListRenderItem<ParkingTicket> = ({ item }) => {
