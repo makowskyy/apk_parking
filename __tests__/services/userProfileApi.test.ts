@@ -89,7 +89,7 @@ describe("userProfileApi", () => {
     const result = await updateUserProfile(1, payload);
 
     const [, options] = (globalAny.fetch as jest.Mock).mock.calls[0];
-    expect(options.method).toBe("PATCH");
+    expect(options.method).toBe("PUT");
     expect(options.body).toContain('"name":"Jan Nowak"');
     expect(result.email).toBe("jan@parking.app");
     expect(result.fullName).toBe("Jan Nowak");

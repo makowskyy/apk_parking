@@ -1,3 +1,4 @@
+import type { StackNavigationProp } from "@react-navigation/stack";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -8,10 +9,11 @@ import {
   View,
 } from "react-native";
 import { ScreenWrapper } from "../components";
+import type { AuthStackParamList } from "../navigation/types";
 import { register } from "../services/authApi";
 
 type RegisterScreenProps = {
-  navigation: any;
+  navigation: StackNavigationProp<AuthStackParamList, "Register">;
 };
 
 interface PasswordStrength {

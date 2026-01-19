@@ -1,12 +1,11 @@
 import { API_BASE } from "../../api/config";
+import type { ZoneKey } from "../constants/zones";
 
 const DEFAULT_API_URL = API_BASE;
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).replace(
   /\/$/,
   ""
 );
-
-export type ZoneKey = "A" | "B" | "C";
 
 export type UserProfile = {
   fullName: string;
@@ -105,10 +104,27 @@ export async function updateUserProfile(
 ): Promise<UserProfile> {
   const payload = { ...profile, name: profile.fullName };
   const res = await fetch(`${API_URL}/users/${encodeURIComponent(String(userId))}`, {
-    method: "PATCH",
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const user = await handle<DbUserProfile>(res);
   return normalizeProfile(user, { email: profile.email, fullName: profile.fullName });
+}
+
+export async function patchUserProfile(
+  userId: number | string,
+  partial: Partial<UserProfile>
+): Promise<UserProfile> {
+  const payload = {
+    ...partial,
+    ...(partial.fullName ? { name: partial.fullName } : {}),
+  };
+  const res = await fetch(`${API_URL}/users/${encodeURIComponent(String(userId))}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const user = await handle<DbUserProfile>(res);
+  return normalizeProfile(user, { email: partial.email, fullName: partial.fullName });
 }

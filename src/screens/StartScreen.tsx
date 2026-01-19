@@ -1,4 +1,5 @@
 import AntDesign from "@expo/vector-icons/AntDesign";
+import type { StackNavigationProp } from "@react-navigation/stack";
 import React from "react";
 import {
   ImageBackground,
@@ -8,12 +9,13 @@ import {
   View,
 } from "react-native";
 import { ScreenWrapper } from "../components";
+import type { AuthStackParamList } from "../navigation/types";
 
 const GREEN = "#8BC34A";
 const OVERLAY = "rgba(0,0,0,0.55)";
 
 type StartScreenProps = {
-  navigation: any;
+  navigation: StackNavigationProp<AuthStackParamList, "Start">;
 };
 
 const StartScreen: React.FC<StartScreenProps> = ({ navigation }) => {

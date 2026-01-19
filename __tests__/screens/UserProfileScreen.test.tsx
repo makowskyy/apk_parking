@@ -7,6 +7,7 @@ import { getSavedUser } from "../../src/services/authStorage";
 import {
   defaultUserProfile,
   fetchUserProfile,
+  patchUserProfile,
   updateUserProfile,
 } from "../../src/services/userProfileApi";
 
@@ -26,6 +27,7 @@ jest.mock("../../src/services/userProfileApi", () => ({
     paymentMethodLabel: "",
   },
   fetchUserProfile: jest.fn(),
+  patchUserProfile: jest.fn(),
   updateUserProfile: jest.fn(),
 }));
 
@@ -66,6 +68,11 @@ describe("UserProfileScreen", () => {
       name: "Test User",
     });
     (fetchUserProfile as jest.Mock).mockResolvedValue({
+      ...defaultUserProfile,
+      fullName: "Test User",
+      email: "user@parking.app",
+    });
+    (patchUserProfile as jest.Mock).mockResolvedValue({
       ...defaultUserProfile,
       fullName: "Test User",
       email: "user@parking.app",
@@ -279,6 +286,18 @@ describe("UserProfileScreen", () => {
   });
 
   it("updates notify and marketing preferences", async () => {
+    let currentProfile = {
+      ...defaultUserProfile,
+      fullName: "Test User",
+      email: "user@parking.app",
+    };
+    (patchUserProfile as jest.Mock).mockImplementation(
+      async (_userId: number, partial: Partial<typeof currentProfile>) => {
+        currentProfile = { ...currentProfile, ...partial };
+        return currentProfile;
+      }
+    );
+
     (updateUserProfile as jest.Mock).mockResolvedValue({
       ...defaultUserProfile,
       fullName: "Test User",

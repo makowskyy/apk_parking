@@ -65,10 +65,6 @@ const initialCars: Car[] = [
   },
 ];
 
-type CarsScreenProps = {
-  navigation: any;
-};
-
 export function removeSelectedCar(cars: Car[], selectedId: string) {
   const selectedCar = cars.find((car) => car.id === selectedId);
   if (!selectedCar) return null;
@@ -78,7 +74,7 @@ export function removeSelectedCar(cars: Car[], selectedId: string) {
   return { updated, nextId };
 }
 
-const CarsScreen: React.FC<CarsScreenProps> = () => {
+const CarsScreen: React.FC = () => {
   const [cars, setCars] = useState<Car[]>(initialCars);
   const [selectedId, setSelectedId] = useState<string>(initialCars[0]?.id ?? "");
   const [isAdding, setIsAdding] = useState(false);
@@ -197,30 +193,16 @@ const CarsScreen: React.FC<CarsScreenProps> = () => {
     }
   };
 
-  const handleAddPhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setScanMessage("Brak dostepu do aparatu.");
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-    });
-
-    if (result.canceled || !result.assets?.length || !selectedCar) {
-      return;
-    }
-
-    const asset = result.assets[0];
+  const updateSelectedCarImage = (uri: string) => {
+    if (!selectedCar) return;
     setCars((prev) =>
       prev.map((car) =>
-        car.id === selectedCar.id ? { ...car, image: { uri: asset.uri } } : car
+        car.id === selectedCar.id ? { ...car, image: { uri } } : car
       )
     );
   };
 
-  const handleEdit = async () => {
+  const handleCapturePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       setScanMessage("Brak dostepu do aparatu.");
@@ -236,11 +218,7 @@ const CarsScreen: React.FC<CarsScreenProps> = () => {
     }
 
     const asset = result.assets[0];
-    setCars((prev) =>
-      prev.map((car) =>
-        car.id === selectedCar.id ? { ...car, image: { uri: asset.uri } } : car
-      )
-    );
+    updateSelectedCarImage(asset.uri);
   };
 
   const handleDelete = () => {
@@ -369,7 +347,7 @@ const CarsScreen: React.FC<CarsScreenProps> = () => {
                         styles.addPhotoButton,
                         pressed && styles.pressed,
                       ]}
-                      onPress={handleAddPhoto}
+                      onPress={handleCapturePhoto}
                     >
                       <Text style={styles.addPhotoText}>Dodaj zdjęcie</Text>
                     </Pressable>
@@ -383,7 +361,7 @@ const CarsScreen: React.FC<CarsScreenProps> = () => {
                     styles.editButton,
                     pressed && styles.pressed,
                   ]}
-                  onPress={handleEdit}
+                  onPress={handleCapturePhoto}
                 >
                   <Text style={styles.editButtonText}>Edytuj</Text>
                 </Pressable>

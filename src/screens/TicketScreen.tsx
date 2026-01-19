@@ -10,40 +10,25 @@ import {
   TextInput,
   View,
 } from "react-native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { ScreenWrapper } from "../components";
+import { ZONES, type ZoneKey } from "../constants/zones";
+import type { MainTabParamList } from "../navigation/types";
+import { addTicket } from "../services/ticketStorage";
+import { BALANCE_KEY } from "../services/storageKeys";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
-
-const TICKETS_STORAGE_KEY = "@parking_tickets" as const;
-const BALANCE_KEY = "@parking_balance" as const;
-
-const ZONES = {
-  A: { name: "Strefa A (centrum)", ratePerHour: 6.0 },
-  B: { name: "Strefa B", ratePerHour: 4.0 },
-  C: { name: "Strefa C", ratePerHour: 3.0 },
-} as const;
-
-type ZoneKey = keyof typeof ZONES;
+import type { ParkingTicket } from "../types/parking";
+import {
+  addMinutes,
+  ceilToQuarterMinutes,
+  computePricePLN,
+  formatDateTime,
+} from "../utils/parking";
 
 const DEFAULT_PLATES: string[] = ["WX 12345", "KR 7J202", "PO 9ABC1"];
 
-type ParkingTicket = {
-  id: string;
-  status: "ACTIVE" | "EXPIRED" | "CANCELLED";
-  createdAtISO: string;
-  plate: string;
-  zone: ZoneKey;
-  zoneName: string;
-  startISO: string;
-  endISO: string;
-  durationMin: number;
-  amount: number;
-  notifyBeforeEnd: boolean;
-};
-
 type ParkingTicketScreenProps = {
-  navigation?: {
-    navigate?: (route: string) => void;
-  };
+  navigation?: BottomTabNavigationProp<MainTabParamList, "Ticket">;
   initialPlates?: string[];
 };
 
@@ -58,41 +43,6 @@ function formatPLN(v: number): string {
     const n = typeof v === "number" ? v.toFixed(2) : v;
     return `${n} PLN`;
   }
-}
-
-function ceilToQuarterMinutes(mins: number): number {
-  const block = 15;
-  return Math.ceil(mins / block) * block;
-}
-
-function addMinutes(date: Date, minutes: number): Date {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d;
-}
-
-function formatDateTime(d: Date): string {
-  try {
-    return d.toLocaleString("pl-PL", {
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  } catch {
-    return d.toString();
-  }
-}
-
-function computePricePLN(
-  durationMinutes: number,
-  ratePerHour: number
-): { billable: number; price: number } {
-  const billable = ceilToQuarterMinutes(Math.max(0, durationMinutes));
-  const price = (billable / 60) * ratePerHour;
-  return { billable, price: +price.toFixed(2) };
 }
 
 type ChipProps = {
@@ -110,17 +60,6 @@ type RowProps = {
   value: string | number;
   big?: boolean;
 };
-
-async function saveTicketGlobal(ticket: ParkingTicket): Promise<void> {
-  try {
-    const existing = await AsyncStorage.getItem(TICKETS_STORAGE_KEY);
-    const parsed: ParkingTicket[] = existing ? JSON.parse(existing) : [];
-    const updated = [ticket, ...parsed];
-    await AsyncStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {
-    console.warn("Nie udało się zapisać biletu w AsyncStorage", e);
-  }
-}
 
 async function readBalance(): Promise<number> {
   try {
@@ -249,7 +188,7 @@ const ParkingTicketScreen: React.FC<ParkingTicketScreenProps> = ({
         ...payload,
       };
 
-      await saveTicketGlobal(ticket);
+      await addTicket(ticket);
 
       const newBalance = +(currentBalance - price).toFixed(2);
       await AsyncStorage.setItem(BALANCE_KEY, String(newBalance));
@@ -257,8 +196,9 @@ const ParkingTicketScreen: React.FC<ParkingTicketScreenProps> = ({
       Alert.alert(
         "Bilet aktywny",
         `Pojazd: ${payload.plate}\n${payload.zoneName}\nOd: ${formatDateTime(
-          startTime
-        )}\nDo: ${formatDateTime(endTime)}\nKwota: ${formatPLN(price)}`
+          startTime,
+          true
+        )}\nDo: ${formatDateTime(endTime, true)}\nKwota: ${formatPLN(price)}`
       );
     } catch (e) {
       console.error(e);
@@ -433,9 +373,9 @@ const ParkingTicketScreen: React.FC<ParkingTicketScreenProps> = ({
           </View>
 
           <Text style={styles.hint}>
-            Start: {formatDateTime(startTime)}
+            Start: {formatDateTime(startTime, true)}
             {"\n"}
-            Koniec: {formatDateTime(endTime)}
+            Koniec: {formatDateTime(endTime, true)}
           </Text>
         </Card>
 

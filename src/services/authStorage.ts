@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from "./storageKeys";
 
-export const AUTH_TOKEN_KEY = "@parking_auth_token";
-export const AUTH_USER_KEY = "@parking_auth_user";
+export { AUTH_TOKEN_KEY, AUTH_USER_KEY } from "./storageKeys";
 
 export type StoredUser = {
   id: number;

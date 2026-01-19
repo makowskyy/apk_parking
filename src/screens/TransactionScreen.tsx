@@ -11,32 +11,16 @@ import {
   View,
 } from "react-native";
 import { ScreenWrapper } from "../components";
+import { ZONES } from "../constants/zones";
+import { BALANCE_KEY } from "../services/storageKeys";
+import {
+  extendTicketInList,
+  loadTickets as loadTicketsStorage,
+  saveTickets,
+} from "../services/ticketStorage";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
-
-const TICKETS_STORAGE_KEY = "@parking_tickets" as const;
-const BALANCE_KEY = "@parking_balance" as const;
-
-const ZONES = {
-  A: { name: "Strefa A (centrum)", ratePerHour: 6.0 },
-  B: { name: "Strefa B", ratePerHour: 4.0 },
-  C: { name: "Strefa C", ratePerHour: 3.0 },
-} as const;
-
-type ZoneKey = keyof typeof ZONES;
-
-type ParkingTicket = {
-  id: string;
-  status: "ACTIVE" | "EXPIRED" | "CANCELLED";
-  createdAtISO: string;
-  plate: string;
-  zone: ZoneKey;
-  zoneName?: string;
-  startISO: string;
-  endISO: string;
-  durationMin: number;
-  amount: number;
-  notifyBeforeEnd: boolean;
-};
+import type { ParkingTicket } from "../types/parking";
+import { formatDateTime } from "../utils/parking";
 
 function formatPLN(v: number): string {
   try {
@@ -61,78 +45,26 @@ function formatCzasPostoju(czasPostoju?: number): string {
   return wynik.trim() || "0 min.";
 }
 
-function formatDateTime(d: Date): string {
-  try {
-    return d.toLocaleString("pl-PL", {
-      hour: "2-digit",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  } catch {
-    return d.toString();
-  }
-}
-
-function addMinutes(date: Date, minutes: number): Date {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d;
-}
-
-function ceilToQuarterMinutes(mins: number): number {
-  const block = 15;
-  return Math.ceil(mins / block) * block;
-}
-
-function computePricePLN(
-  durationMinutes: number,
-  ratePerHour: number
-): { billable: number; price: number } {
-  const billable = ceilToQuarterMinutes(Math.max(0, durationMinutes));
-  const price = (billable / 60) * ratePerHour;
-  return { billable, price: +price.toFixed(2) };
-}
-
 export async function extendTransactionTicket(
   tickets: ParkingTicket[],
   id: string,
   setTickets: (value: ParkingTicket[]) => void
 ): Promise<void> {
-  const EXTENSION_MINUTES = 15;
   try {
-    const target = tickets.find((t) => t.id === id);
-    if (!target) return;
+    const extension = extendTicketInList(tickets, id);
+    if (!extension) return;
+    const { updated, extraCost } = extension;
 
     const storedBalance = await AsyncStorage.getItem(BALANCE_KEY);
     const currentBalance = storedBalance ? parseFloat(storedBalance) : 0;
-
-    const end = new Date(target.endISO);
-    const newEnd = addMinutes(end, EXTENSION_MINUTES);
-    const newDuration = (target.durationMin || 0) + EXTENSION_MINUTES;
-    const zoneCfg = ZONES[target.zone] || { ratePerHour: 0 };
-    const { price } = computePricePLN(newDuration, zoneCfg.ratePerHour);
-    const extraCost = Math.max(0, price - target.amount);
 
     if (extraCost > currentBalance) {
       Alert.alert("Brak środków", "Doładuj saldo, aby przedłużyć bilet.");
       return;
     }
 
-    const updated = tickets.map((t) =>
-      t.id === id
-        ? {
-            ...t,
-            endISO: newEnd.toISOString(),
-            durationMin: newDuration,
-            amount: price,
-          }
-        : t
-    );
-
     setTickets(updated);
-    await AsyncStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(updated));
+    await saveTickets(updated);
 
     if (extraCost > 0) {
       const newBalance = +(currentBalance - extraCost).toFixed(2);
@@ -172,14 +104,13 @@ const ParkingTransactionsScreen: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadTickets();
+    void loadTicketsData();
   }, []);
 
-  async function loadTickets(): Promise<void> {
+  async function loadTicketsData(): Promise<void> {
     try {
       setLoading(true);
-      const stored = await AsyncStorage.getItem(TICKETS_STORAGE_KEY);
-      const parsed: ParkingTicket[] = stored ? JSON.parse(stored) : [];
+      const parsed = await loadTicketsStorage();
       const sorted = parsed.sort(
         (a, b) =>
           new Date(b.startISO).getTime() - new Date(a.startISO).getTime()

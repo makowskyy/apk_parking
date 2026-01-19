@@ -6,10 +6,6 @@ import { ScreenWrapper } from "../components";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
 import strefy from "../../assets/strefy.json";
 
-type MapScreenProps = {
-  navigation: any;
-};
-
 type GeoJsonFeature = {
   id?: string | number;
   properties?: { nazwa?: string };
@@ -28,7 +24,7 @@ type ZonePolygon = {
   center: { latitude: number; longitude: number } | null;
 };
 
-const MapScreen: React.FC<MapScreenProps> = () => {
+const MapScreen: React.FC = () => {
   const { colors } = useContext(ThemeContext);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [region, setRegion] = useState<Region | null>(null);

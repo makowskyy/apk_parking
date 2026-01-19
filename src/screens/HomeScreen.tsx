@@ -19,36 +19,20 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { ScreenWrapper } from "../components";
+import type { MainTabParamList } from "../navigation/types";
+import { BALANCE_KEY } from "../services/storageKeys";
+import {
+  extendTicketInList,
+  loadTickets,
+  saveTickets,
+} from "../services/ticketStorage";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
+import type { ParkingTicket } from "../types/parking";
 
 const DRAWER_WIDTH = 260;
-
-const BALANCE_KEY = "@parking_balance" as const;
-const TICKETS_STORAGE_KEY = "@parking_tickets" as const;
-
-const ZONES = {
-  A: { name: "Strefa A (centrum)", ratePerHour: 6.0 },
-  B: { name: "Strefa B", ratePerHour: 4.0 },
-  C: { name: "Strefa C", ratePerHour: 3.0 },
-} as const;
-
-type ZoneKey = keyof typeof ZONES;
-
-type ParkingTicket = {
-  id: string;
-  status: "ACTIVE" | "EXPIRED" | "CANCELLED";
-  createdAtISO: string;
-  plate: string;
-  zone: ZoneKey;
-  zoneName?: string;
-  startISO: string;
-  endISO: string;
-  durationMin: number;
-  amount: number;
-  notifyBeforeEnd: boolean;
-};
 
 type HomeItem = {
   key: string;
@@ -66,28 +50,8 @@ const items: HomeItem[] = [
 ];
 
 type HomeScreenProps = {
-  navigation: any;
+  navigation: BottomTabNavigationProp<MainTabParamList, "Home">;
 };
-
-function addMinutes(date: Date, minutes: number): Date {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d;
-}
-
-function ceilToQuarterMinutes(mins: number): number {
-  const block = 15;
-  return Math.ceil(mins / block) * block;
-}
-
-function computePricePLN(
-  durationMinutes: number,
-  ratePerHour: number
-): { billable: number; price: number } {
-  const billable = ceilToQuarterMinutes(Math.max(0, durationMinutes));
-  const price = (billable / 60) * ratePerHour;
-  return { billable, price: +price.toFixed(2) };
-}
 
 export function pickTicketToDisplay(
   tickets: ParkingTicket[]
@@ -134,46 +98,21 @@ export async function extendTicketFromStorage(
 ): Promise<void> {
   if (!lastTicket) return;
 
-  const EXTENSION_MINUTES = 15;
-
   try {
     const storedBalance = await AsyncStorage.getItem(BALANCE_KEY);
     const currentBalance = storedBalance ? parseFloat(storedBalance) : 0;
 
-    const storedTickets = await AsyncStorage.getItem(TICKETS_STORAGE_KEY);
-    const parsed: ParkingTicket[] = storedTickets
-      ? JSON.parse(storedTickets)
-      : [];
-
-    let extraCost = 0;
-
-    const updated = parsed.map((t) => {
-      if (t.id !== lastTicket.id) return t;
-
-      const end = new Date(t.endISO);
-      const newEnd = addMinutes(end, EXTENSION_MINUTES);
-      const newDuration = (t.durationMin || 0) + EXTENSION_MINUTES;
-      const zoneCfg = ZONES[t.zone] || { ratePerHour: 0 };
-      const { price } = computePricePLN(newDuration, zoneCfg.ratePerHour);
-
-      extraCost = Math.max(0, price - t.amount);
-
-      return {
-        ...t,
-        endISO: newEnd.toISOString(),
-        durationMin: newDuration,
-        amount: price,
-      };
-    });
+    const parsed = await loadTickets();
+    const extension = extendTicketInList(parsed, lastTicket.id);
+    if (!extension) return;
+    const { updated, updatedTicket, extraCost } = extension;
 
     if (extraCost > currentBalance) {
       Alert.alert("Brak środków", "Doładuj saldo, aby przedłużyć bilet.");
       return;
     }
 
-    await AsyncStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(updated));
-
-    const updatedTicket = updated.find((t) => t.id === lastTicket.id) || null;
+    await saveTickets(updated);
     setLastTicket(updatedTicket);
 
     if (extraCost > 0) {
@@ -237,20 +176,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       const loadData = async () => {
         try {
           const storedBalance = await AsyncStorage.getItem(BALANCE_KEY);
-          const storedTickets = await AsyncStorage.getItem(TICKETS_STORAGE_KEY);
+          const parsed = await loadTickets();
 
           if (!isActive) return;
 
           setBalance(storedBalance !== null ? parseFloat(storedBalance) : 0);
 
-          if (storedTickets) {
-            const parsed: ParkingTicket[] = JSON.parse(storedTickets);
-            const ticketToShow =
-              parsed.length > 0 ? pickTicketToDisplay(parsed) : null;
-            setLastTicket(ticketToShow);
-          } else {
-            setLastTicket(null);
-          }
+          const ticketToShow =
+            parsed.length > 0 ? pickTicketToDisplay(parsed) : null;
+          setLastTicket(ticketToShow);
         } catch (e) {
           console.warn("Błąd wczytywania salda/biletu startowego:", e);
           setLastTicket(null);

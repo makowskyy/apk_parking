@@ -11,6 +11,8 @@ import {
 import * as Notifications from "expo-notifications";
 import appConfig from "../../app.json";
 import { ScreenWrapper } from "../components";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { MainTabParamList } from "../navigation/types";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
 
 const GREEN = "#8BC34A";
@@ -53,7 +55,7 @@ const notifyNotificationsEnabledAsync = async () => {
 };
 
 type SettingsScreenProps = {
-  navigation: any;
+  navigation: BottomTabNavigationProp<MainTabParamList, "Settings">;
   onLogout?: () => void;
 };
 

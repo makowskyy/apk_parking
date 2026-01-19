@@ -14,10 +14,8 @@ import {
   View,
 } from "react-native";
 import { ScreenWrapper } from "../components";
+import { BALANCE_KEY, HISTORY_KEY } from "../services/storageKeys";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
-
-const BALANCE_KEY = "@parking_balance" as const;
-const HISTORY_KEY = "@parking_topup_history" as const;
 type TopUpEntry = {
   id: string;
   amount: number;

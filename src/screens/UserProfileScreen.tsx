@@ -19,24 +19,17 @@ import {
 
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
+import { ZONES, type ZoneKey } from "../constants/zones";
 import { ThemeColors, ThemeContext } from "../theme/ThemeContext";
 import { ScreenWrapper } from "@/components";
 import { getSavedUser } from "../services/authStorage";
 import {
   defaultUserProfile as defaultProfile,
   fetchUserProfile,
+  patchUserProfile,
   updateUserProfile,
   type UserProfile,
-  type ZoneKey,
 } from "../services/userProfileApi";
-
-const ZONES = {
-  A: { name: "Strefa A (centrum)", ratePerHour: 6.0 },
-
-  B: { name: "Strefa B", ratePerHour: 4.0 },
-
-  C: { name: "Strefa C", ratePerHour: 3.0 },
-} as const;
 
 type PaymentType = "CARD" | "BLIK";
 
@@ -207,17 +200,34 @@ const UserProfileScreen: React.FC<UserProfileScreenProps> = ({
     blikAliasRef.current = blikAlias;
   }, [defaultDurationInput, cardLast4, blikAlias]);
 
+  const applyPartialUpdate = useCallback(
+    async (partial: Partial<UserProfile>) => {
+      const userId = userIdRef.current;
+      if (userId == null) return;
+
+      try {
+        const updated = await patchUserProfile(userId, partial);
+        setProfile(updated);
+      } catch (e) {
+        console.warn("Nie udało się zapisać zmian cząstkowych", e);
+      }
+    },
+    []
+  );
+
   const handleSelectZone = useCallback((z: ZoneKey) => {
     setProfile((p) => ({ ...p, defaultZone: z }));
   }, []);
 
   const handleNotifyToggle = useCallback((v: boolean) => {
     setProfile((p) => ({ ...p, notifyBeforeEnd: v }));
-  }, []);
+    void applyPartialUpdate({ notifyBeforeEnd: v });
+  }, [applyPartialUpdate]);
 
   const handleMarketingToggle = useCallback((v: boolean) => {
     setProfile((p) => ({ ...p, allowMarketing: v }));
-  }, []);
+    void applyPartialUpdate({ allowMarketing: v });
+  }, [applyPartialUpdate]);
 
   const toggleEditingPersonal = useCallback(() => {
     setIsEditingPersonal((v) => {
