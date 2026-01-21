@@ -6,21 +6,21 @@ Aplikacja mobilna Expo do obsługi płatnego parkowania w strefach miejskich: za
 
 ## Galeria
 
-| Start                                             | Logowanie                                    | Rejestracja                                       |
-| ------------------------------------------------- | -------------------------------------------- | ------------------------------------------------- |
-| ![Ekran startowy](./assets/screenshots/start.jpg) | ![Logowanie](./assets/screenshots/login.jpg) | ![Rejestracja](./assets/screenshots/register.jpg) |
+| Start                                             | Logowanie                             | Rejestracja                                |
+| ------------------------------------------------- | ------------------------------------- | ------------------------------------------ |
+| ![Ekran startowy](./assets/screenshots/start.jpg) | ![Logowanie](./assets/gifs/login.gif) | ![Rejestracja](./assets/gifs/register.gif) |
 
 | Home                                           | Mapa                                        | Portfel                                     |
 | ---------------------------------------------- | ------------------------------------------- | ------------------------------------------- |
 | ![Ekran główny](./assets/screenshots/home.jpg) | ![Mapa stref](./assets/screenshots/map.jpg) | ![Portfel](./assets/screenshots/wallet.jpg) |
 
-| Bilet                                            | Transakcje                                                   | Samochody                                |
-| ------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------- |
-| ![Zakup biletu](./assets/screenshots/ticket.jpg) | ![Historia transakcji](./assets/screenshots/transaction.jpg) | ![Pojazdy](./assets/screenshots/car.jpg) |
+| Bilet                                     | Transakcje                                                   | Samochody                         |
+| ----------------------------------------- | ------------------------------------------------------------ | --------------------------------- |
+| ![Zakup biletu](./assets/gifs/ticket.gif) | ![Historia transakcji](./assets/screenshots/transaction.jpg) | ![Pojazdy](./assets/gifs/car.gif) |
 
-| Profil                                                  | Ustawienia                                       |
-| ------------------------------------------------------- | ------------------------------------------------ |
-| ![Profil użytkownika](./assets/screenshots/profile.jpg) | ![Ustawienia](./assets/screenshots/settings.jpg) |
+| Profil                                           | Ustawienia                                |
+| ------------------------------------------------ | ----------------------------------------- |
+| ![Profil użytkownika](./assets/gifs/profile.gif) | ![Ustawienia](./assets/gifs/settings.gif) |
 
 ## Funkcjonalności
 
@@ -29,18 +29,20 @@ Aplikacja mobilna Expo do obsługi płatnego parkowania w strefach miejskich: za
 - Zakup biletu: wybór pojazdu (dodawanie tablic), stref A/B/C z cennikiem, start teraz lub zaplanowany, czas w krokach 15 min, przypomnienie przed końcem, podsumowanie płatności i zapis w AsyncStorage.
 - Historia transakcji: statusy aktywny/zaplanowany/zakończony, szczegóły biletu, możliwość przedłużenia aktywnego postoju z wykorzystaniem salda.
 - Portfel: doładowania dowolną kwotą z historią operacji zapisywaną lokalnie.
-- Samochody: lista i wybór pojazdów, dodawanie nowych tablic, przykładowe zdjęcia aut.
+- Samochody: lista i wybór pojazdów, dodawanie nowych tablic, przykładowe zdjęcia aut, zdjęcie z aparatu oraz rozpoznawanie tablic przez Plate Recognizer (wymaga `EXPO_PUBLIC_PLATE_RECOGNIZER_API_KEY`).
 - Mapa stref płatnych: bieżąca lokalizacja użytkownika, poligony stref z `assets/strefy.json`, znaczniki z nazwami stref.
 - Profil: dane osobowe, domyślna strefa i czas biletu, preferencje powiadomień, zgody marketingowe, etykieta metody płatności (karta/BLIK).
-- Ustawienia: wymuszenie trybu ciemnego, przełącznik powiadomień i biometrii, wersja aplikacji z `app.json`, wylogowanie do ekranu startowego.
+- Ustawienia: wymuszenie trybu ciemnego, przełącznik powiadomień i biometrii, lokalne powiadomienia (expo-notifications), wersja aplikacji z `app.json`, wylogowanie do ekranu startowego.
+- Sesja użytkownika zapisywana w AsyncStorage i automatyczny powrót po restarcie aplikacji.
 
 ## Stack technologiczny
 
-- **Core:** Expo ~54.0.27, React Native 0.81.5, React 19.1, TypeScript ~5.9, AsyncStorage, expo-status-bar, expo-navigation-bar, @expo/vector-icons.
+- **Core:** Expo ~54.0.27, React Native 0.81.5, React 19.1, TypeScript ~5.9, AsyncStorage, expo-status-bar, expo-navigation-bar, @expo/vector-icons, react-native-vector-icons.
 - **Nawigacja:** React Navigation 7 (native-stack, bottom-tabs), react-native-screens, react-native-safe-area-context.
 - **Mapy i lokalizacja:** react-native-maps 1.20.1, expo-location 19, dane stref w `assets/strefy.json` (skrypt konwersji `assets/konwersjaMap.py`).
-- **Bezpieczeństwo/UX:** expo-local-authentication (biometria), react-native-keyboard-aware-scroll-view.
-- **Backend / Mock:** json-server ^1.0.0-beta.3 (`mock-api/server.js`, `mock-api/db.json`), domyślny endpoint `http://localhost:3001/login`, zmienna `EXPO_PUBLIC_API_URL` do nadpisania URL.
+- **Bezpieczeństwo/UX:** expo-local-authentication (biometria), react-native-keyboard-aware-scroll-view, expo-notifications.
+- **Media/AI:** expo-image-picker, expo-linear-gradient, Plate Recognizer API (rozpoznawanie tablic).
+- **Backend / Mock:** json-server ^1.0.0-beta.3 (`api/db.json`, `api/client.ts`), domyślne URL z `api/config.ts` (port 4000), zmienna `EXPO_PUBLIC_API_URL` do nadpisania URL.
 
 ## Instalacja i uruchomienie
 
@@ -51,12 +53,16 @@ Aplikacja mobilna Expo do obsługi płatnego parkowania w strefach miejskich: za
    npm install
    ```
 2. Uruchom mock API (osobne okno terminala):
+
    ```bash
-   npm run mock-api
+   npm run api
    ```
-   - domyślnie dostępne pod `http://localhost:3001` (port można zmienić przez `MOCK_API_PORT`)
+
+   - domyślnie dostępne pod `http://localhost:4000`
+   - domyślna baza API jest wybierana w `api/config.ts` (np. `http://10.0.2.2:4000` dla emulatora Android)
    - dane logowania demo: `demo@parking.app` / `demo123` lub `user@parking.app` / `haslo123`
-   - aplikacja użyje `EXPO_PUBLIC_API_URL` jeśli zostanie ustawione, inaczej domyślnie `http://localhost:3001`
+   - aplikacja użyje `EXPO_PUBLIC_API_URL` jeśli zostanie ustawione, inaczej wartości z `api/config.ts`
+
 3. Start aplikacji (Expo):
    ```bash
    npm start          # tryb developerski / Expo Go
@@ -65,7 +71,11 @@ Aplikacja mobilna Expo do obsługi płatnego parkowania w strefach miejskich: za
    ```
 4. Wymagania środowiska:
    - Node.js, npm, Expo CLI; zainstalowane środowisko Android/iOS lub Expo Go.
-   - `app.json` ustawia `userInterfaceStyle: "dark"` oraz `newArchEnabled: true` (nowa architektura RN).
+   - `app.json` ustawia `userInterfaceStyle: "light"` oraz `newArchEnabled: true` (nowa architektura RN).
+5. Testy (Opcjonalnie):
+   ```bash
+   npm test
+   ```
 
 ## Struktura katalogów
 
@@ -89,9 +99,11 @@ apk_parking/
 │     ├─ car1.png
 │     ├─ car2.png
 │     └─ car3.png
-├─ mock-api/
+├─ api/
 │  ├─ db.json
-│  └─ server.js
+│  ├─ client.ts
+│  ├─ config.ts
+│  └─ types.ts
 └─ src/
    ├─ components/
    │  ├─ AppButton.tsx
